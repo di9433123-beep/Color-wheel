@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChromaSphere Studio - Interactive Color Wheel & History Explorer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        darkbg: '#0b0f19',
+                        cardbg: '#0f172a',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+        }
+        .canvas-shadow {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- Header / Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
+                    <i class="fa-solid font-bold text-white text-lg fa-palette"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-xl tracking-tight text-white">ChromaSphere Studio</h1>
+                    <p class="text-xs text-slate-400">Radial HSL Wheel & Master Pigment History (100+ Colors)</p>
+                </div>
+            </div>
+            
+            <div class="hidden sm:flex items-center gap-2 text-xs bg-slate-800/80 p-1.5 rounded-lg border border-slate-700">
+                <span class="text-slate-400 px-2">Structure:</span>
+                <span class="bg-slate-700 text-slate-200 px-2 py-0.5 rounded font-mono">White Hub (Center)</span>
+                <i class="fa-solid fa-arrow-right text-slate-500"></i>
+                <span class="bg-slate-700 text-slate-200 px-2 py-0.5 rounded font-mono">Pure Hues</span>
+                <i class="fa-solid fa-arrow-right text-slate-500"></i>
+                <span class="bg-slate-700 text-slate-200 px-2 py-0.5 rounded font-mono">Black Rim</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left Column: Interactive Wheel & Monochrome Slider (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col gap-6">
+            
+            <!-- Wheel Container Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col items-center relative shadow-2xl">
+                <div class="w-full flex justify-between items-center mb-3">
+                    <h2 class="font-semibold text-slate-200 flex items-center gap-2 text-sm sm:text-base">
+                        <i class="fa-solid fa-compact-disc text-indigo-400"></i> Radial Color Wheel Canvas
+                    </h2>
+                    <span class="text-[11px] text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full border border-slate-700">
+                        Tap any marker circle
+                    </span>
+                </div>
+
+                <!-- Canvas Wrapper for Responsiveness -->
+                <div class="relative w-full max-w-[440px] aspect-square flex items-center justify-center my-2">
+                    <canvas id="colorWheel" width="440" height="440" class="rounded-full cursor-pointer canvas-shadow border-4 border-slate-800 hover:border-slate-700 transition-colors"></canvas>
+                </div>
+
+                <!-- Footnote -->
+                <p class="text-xs text-slate-400 text-center mt-2">
+                    <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i>
+                    White hub center, pure hues in mid-circle, shading out to black outer edge. Click any marker circle to inspect.
+                </p>
+            </div>
+
+            <!-- Monochrome Linear Axis Slider -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-400"></i> Pure Monochrome Axis (Black to White)
+                    </h3>
+                    <span id="monoValueLabel" class="text-xs font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-300">Lightness: 50%</span>
+                </div>
+
+                <!-- Interactive Monochrome Canvas Slider with Markers -->
+                <div class="relative w-full h-12 rounded-xl overflow-hidden cursor-pointer border border-slate-700" id="monoContainer">
+                    <canvas id="monoCanvas" height="48" class="w-full h-full"></canvas>
+                </div>
+
+                <div class="flex justify-between text-xs text-slate-400 mt-2 px-1">
+                    <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-black rounded-full border border-slate-700"></div> Black (0%)</span>
+                    <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-gray-500 rounded-full"></div> Neutral Gray (50%)</span>
+                    <span class="flex items-center gap-1"><div class="w-2.5 h-2.5 bg-white rounded-full"></div> White (100%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Inspector, History & Palette (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+
+            <!-- Color Inspector Card -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-eye text-sky-400"></i> Active Color Inspector
+                    </h3>
+                    <button id="copyHexBtn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded transition border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i> Copy HEX
+                    </button>
+                </div>
+
+                <!-- Selected Color Banner -->
+                <div class="flex items-center gap-4 p-3 bg-slate-950 rounded-xl border border-slate-800 mb-4">
+                    <div id="inspectorSwatch" class="w-16 h-16 rounded-lg shadow-inner border border-white/20 transition-colors duration-150 flex-shrink-0"></div>
+                    <div class="overflow-hidden">
+                        <div id="inspectorName" class="text-lg font-bold text-white tracking-wide truncate">Red</div>
+                        <div id="inspectorCategory" class="text-xs text-indigo-400 font-medium">Reds & Pinks</div>
+                    </div>
+                </div>
+
+                <!-- Technical Specs Grid -->
+                <div class="grid grid-cols-3 gap-2 font-mono text-xs">
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-slate-500 block text-[10px]">HEX</span>
+                        <span id="hexVal" class="text-slate-200 font-semibold">#FF0000</span>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-slate-500 block text-[10px]">RGB</span>
+                        <span id="rgbVal" class="text-slate-200 font-semibold">255, 0, 0</span>
+                    </div>
+                    <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-slate-500 block text-[10px]">HSL</span>
+                        <span id="hslVal" class="text-slate-200 font-semibold">0°, 100%, 50%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historical Origins Box -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+                <h3 class="font-semibold text-slate-200 text-sm mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-book-open text-purple-400"></i> Historical Origin & Etymology
+                </h3>
+
+                <div class="bg-slate-950/70 rounded-xl p-4 border border-slate-800 text-xs text-slate-300 leading-relaxed custom-scrollbar overflow-y-auto max-h-[140px]" id="historyText">
+                    <!-- Dynamic history text -->
+                </div>
+            </div>
+
+            <!-- Master Color Collection Palette Grid (100+ Colors) -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl flex-grow flex flex-col">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                    <h3 class="font-semibold text-slate-200 text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-palette text-amber-400"></i> Master Palette (<span id="colorCount">0</span>)
+                    </h3>
+                    
+                    <input type="text" id="colorSearch" placeholder="Search color..." class="w-full sm:w-36 bg-slate-950 border border-slate-800 text-slate-200 text-xs px-2.5 py-1 rounded-lg focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <!-- Category Filter Tabs -->
+                <div class="flex gap-1 overflow-x-auto pb-2 mb-3 text-[11px] custom-scrollbar" id="categoryTabs">
+                    <button class="cat-btn active px-2.5 py-1 rounded bg-indigo-600 text-white whitespace-nowrap" data-cat="all">All</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Monochrome & Metallics">Neutrals</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Reds & Pinks">Reds/Pinks</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Oranges & Browns">Oranges/Browns</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Yellows & Golds">Yellows/Golds</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Greens & Olives">Greens</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Cyans & Teals">Cyans/Teals</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Blues & Deep Blues">Blues</button>
+                    <button class="cat-btn px-2.5 py-1 rounded bg-slate-800 text-slate-400 hover:text-white whitespace-nowrap" data-cat="Purples & Violets">Purples/Violets</button>
+                </div>
+                
+                <div class="grid grid-cols-4 sm:grid-cols-6 gap-2 custom-scrollbar overflow-y-auto max-h-[220px] p-1" id="paletteGrid">
+                    <!-- Master Palette items rendered by JS -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800 bg-slate-900/50 py-4 mt-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>ChromaSphere Studio • Master Color Palette & Historical Pigment Visualizer</span>
+            <span>Sir Isaac Newton (1666) • Goethe (1810) • Albert Munsell (1905)</span>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 border border-slate-700 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">HEX code copied!</span>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // Full Master Dataset of 100+ Colors requested across all turns
+        const MASTER_COLORS = [
+            // Monochrome & Metallics (Plates on Mono bar + Center/Rim)
+            { name: "white", hex: "#FFFFFF", category: "Monochrome & Metallics", angle: 0, distRatio: 0.0, isMono: true, monoPos: 1.0, history: "Historical Origin: Sir Isaac Newton (1666) demonstrated white light blends all visible wavelengths. Placed at the central hub and white end of the monochrome bar." },
+            { name: "black", hex: "#000000", category: "Monochrome & Metallics", angle: 0, distRatio: 1.0, isMono: true, monoPos: 0.0, history: "Historical Origin: Total absorption of visible light. Represents the maximum shading rim around the outer wheel boundary." },
+            { name: "gray", hex: "#808080", category: "Monochrome & Metallics", angle: 0, distRatio: 0.0, isMono: true, monoPos: 0.50, history: "Historical Origin: True neutral value balance formalized in Munsell's 3D color system (1905)." },
+            { name: "coal", hex: "#1C1C1C", category: "Monochrome & Metallics", angle: 0, distRatio: 0.94, isMono: true, monoPos: 0.11, history: "Historical Origin: Derived from carbonized organic matter; used since prehistoric cave drawings." },
+            { name: "graphite", hex: "#2B2B2B", category: "Monochrome & Metallics", angle: 0, distRatio: 0.83, isMono: true, monoPos: 0.17, history: "Historical Origin: Named for crystalline carbon discovered in Borrowdale, England (1564) and used in early pencils." },
+            { name: "diamond", hex: "#E5F2F7", category: "Monochrome & Metallics", angle: 190, distRatio: 0.08, isMono: true, monoPos: 0.93, history: "Historical Origin: Inspired by the brilliant refractive dispersion and ice-white luster of carbon crystals." },
+            { name: "pearl", hex: "#FDEEF4", category: "Monochrome & Metallics", angle: 340, distRatio: 0.06, isMono: true, monoPos: 0.96, history: "Historical Origin: Natural nacre from mollusk shells, prized since antiquity for soft iridescent off-white tones." },
+            { name: "rainwater", hex: "#E6F2F7", category: "Monochrome & Metallics", angle: 200, distRatio: 0.07, isMono: true, monoPos: 0.93, history: "Historical Origin: Clear desaturated atmospheric tone popularized in 19th-century watercolor landscape art." },
+            { name: "iron", hex: "#434B4D", category: "Monochrome & Metallics", angle: 195, distRatio: 0.78, isMono: true, monoPos: 0.28, history: "Historical Origin: Named after unrefined elemental iron ore, foundational to ancient metallurgy and steel production." },
+            { name: "silver", hex: "#C0C0C0", category: "Monochrome & Metallics", angle: 210, distRatio: 0.25, isMono: true, monoPos: 0.75, history: "Historical Origin: Associated with precious elemental silver metal, crafted into coins and jewelry since ancient Egypt." },
+            { name: "shadow", hex: "#373737", category: "Monochrome & Metallics", angle: 240, distRatio: 0.86, isMono: true, monoPos: 0.22, history: "Historical Origin: Explored by Renaissance masters like Leonardo da Vinci as sfumato shadow transitions." },
+            { name: "albino", hex: "#F9F6F0", category: "Monochrome & Metallics", angle: 40, distRatio: 0.05, isMono: true, monoPos: 0.97, history: "Historical Origin: Derived from Latin 'albus' (white), matching natural biological absence of melanin." },
+            { name: "milk", hex: "#FDFFF5", category: "Monochrome & Metallics", angle: 70, distRatio: 0.04, isMono: true, monoPos: 0.98, history: "Historical Origin: Creamy off-white shade cataloged in early natural history color manuals." },
+            { name: "asphalt", hex: "#2F353B", category: "Monochrome & Metallics", angle: 215, distRatio: 0.80, isMono: true, monoPos: 0.20, history: "Historical Origin: Deep dark mineral pitch used as waterproofing binder in ancient Mesopotamia." },
+            { name: "snow", hex: "#FFFAFA", category: "Monochrome & Metallics", angle: 0, distRatio: 0.02, isMono: true, monoPos: 0.99, history: "Historical Origin: Crisp pure white inspired by freshly fallen crystalline snow." },
+            { name: "stone", hex: "#877F7D", category: "Monochrome & Metallics", angle: 20, distRatio: 0.45, isMono: true, monoPos: 0.52, history: "Historical Origin: Natural earth gray derived from weathered granite and limestone rocks." },
+
+            // Reds & Pinks
+            { name: "red", hex: "#FF0000", category: "Reds & Pinks", angle: 0, distRatio: 0.55, history: "Historical Origin: Longest visible wavelength (~625–740nm). Spectral primary anchor of Newton's color circle." },
+            { name: "vermillion", hex: "#E34234", category: "Reds & Pinks", angle: 5, distRatio: 0.60, history: "Historical Origin: Ancient cinnabar pigment used in Roman murals and traditional Chinese lacquerware." },
+            { name: "scarlet", hex: "#FF2400", category: "Reds & Pinks", angle: 8, distRatio: 0.55, history: "Historical Origin: Vivid fiery red historically extracted from Kermes insects and cochineal dyes." },
+            { name: "ruby", hex: "#E0115F", category: "Reds & Pinks", angle: 340, distRatio: 0.62, history: "Historical Origin: Named for precious corundum gem crystals colored red by chromium ions." },
+            { name: "garnet", hex: "#731720", category: "Reds & Pinks", angle: 352, distRatio: 0.77, history: "Historical Origin: Deep crimson silicate gem color prized since Bronze Age signet rings." },
+            { name: "spinel", hex: "#FF1E56", category: "Reds & Pinks", angle: 345, distRatio: 0.56, history: "Historical Origin: Renowned gemstone red historically mistaken for ruby in crown jewels." },
+            { name: "blood", hex: "#660000", category: "Reds & Pinks", angle: 0, distRatio: 0.82, history: "Historical Origin: Deep iron-rich crimson hue symbolic of vital life force in heraldry." },
+            { name: "brick", hex: "#963D32", category: "Reds & Pinks", angle: 7, distRatio: 0.65, history: "Historical Origin: Warm earthy red produced by firing iron-bearing clay in architecture." },
+            { name: "lipstick", hex: "#C71585", category: "Reds & Pinks", angle: 322, distRatio: 0.58, history: "Historical Origin: Cosmetic rouge hue formulated with carmine pigments in early beauty products." },
+            { name: "berry", hex: "#990F4B", category: "Reds & Pinks", angle: 334, distRatio: 0.68, history: "Historical Origin: Rich wild fruit red mirroring ripe elderberries and blackberries." },
+            { name: "rose", hex: "#FF007F", category: "Reds & Pinks", angle: 330, distRatio: 0.52, history: "Historical Origin: Classic floral hue between red and magenta, celebrated since ancient Greek poetry." },
+            { name: "fuchsia", hex: "#FF00FF", category: "Reds & Pinks", angle: 300, distRatio: 0.50, history: "Historical Origin: Named after botanist Leonhart Fuchs; key magenta primary color." },
+            { name: "punch", hex: "#DC3545", category: "Reds & Pinks", angle: 354, distRatio: 0.54, history: "Historical Origin: Lively fruit-drink red widely used in mid-century illustration." },
+            { name: "hot-pink", hex: "#FF69B4", category: "Reds & Pinks", angle: 330, distRatio: 0.38, history: "Historical Origin: Vibrant saturated pink popularized in 20th-century pop art and fashion." },
+            { name: "pink", hex: "#FFC0CB", category: "Reds & Pinks", angle: 350, distRatio: 0.28, history: "Historical Origin: Desaturated red tint blending red hue with central white light." },
+            { name: "wine", hex: "#722F37", category: "Reds & Pinks", angle: 350, distRatio: 0.78, history: "Historical Origin: Deep claret shade matching fermented red grape skins, recorded in 1705." },
+            { name: "maroon", hex: "#800000", category: "Reds & Pinks", angle: 0, distRatio: 0.75, history: "Historical Origin: Derived from French 'marron' (chestnut), a dark brownish-red tone." },
+            { name: "raspberry", hex: "#E30B5C", category: "Reds & Pinks", angle: 342, distRatio: 0.56, history: "Historical Origin: Vivid magenta-red named after edible berries of Rubus idaeus." },
+            { name: "watermelon", hex: "#FC6C85", category: "Reds & Pinks", angle: 348, distRatio: 0.38, history: "Historical Origin: Fresh coral-pink red mirroring ripe watermelon pulp." },
+            { name: "velvet red", hex: "#7C0A02", category: "Reds & Pinks", angle: 356, distRatio: 0.82, history: "Historical Origin: Deep crimson woven into Renaissance luxury silk velvet fabrics." },
+            { name: "flame", hex: "#E25822", category: "Reds & Pinks", angle: 14, distRatio: 0.58, history: "Historical Origin: Intense red-orange hue capturing radiant combustion." },
+            { name: "FairyPink", hex: "#F6C1D6", category: "Reds & Pinks", angle: 335, distRatio: 0.22, history: "Historical Origin: Soft whimsical pastel pink used in fairytale book illustrations." },
+            { name: "lotuspink", hex: "#F582A8", category: "Reds & Pinks", angle: 338, distRatio: 0.38, history: "Historical Origin: Sacred floral hue inspired by Nelumbo nucifera lotus blossoms." },
+            { name: "Blushie", hex: "#FFB6C1", category: "Reds & Pinks", angle: 350, distRatio: 0.24, history: "Historical Origin: Gentle flush pink tone capturing natural cheek rouge." },
+            { name: "Rosewood", hex: "#65000B", category: "Reds & Pinks", angle: 355, distRatio: 0.84, history: "Historical Origin: Deep dark reddish-brown wood timber tone prized in fine furniture." },
+            { name: "paprika", hex: "#8D021F", category: "Reds & Pinks", angle: 348, distRatio: 0.76, history: "Historical Origin: Rich ground red pepper spice color native to Central America." },
+            { name: "salmon", hex: "#FA8072", category: "Reds & Pinks", angle: 6, distRatio: 0.40, history: "Historical Origin: Pinkish-orange tone matching fresh wild salmon flesh." },
+            { name: "crimson", hex: "#DC143C", category: "Reds & Pinks", angle: 348, distRatio: 0.58, history: "Historical Origin: Classic deep red historically extracted from Kermes dye." },
+            { name: "bubblegum", hex: "#FFC1CC", category: "Reds & Pinks", angle: 345, distRatio: 0.24, history: "Historical Origin: Playful bright pastel pink popularized in 1920s confectionery." },
+            { name: "Baby pink", hex: "#F4C2C2", category: "Reds & Pinks", angle: 352, distRatio: 0.20, history: "Historical Origin: Soft delicate pale pink traditional in nursery color palettes." },
+
+            // Oranges & Browns
+            { name: "orange", hex: "#FFA500", category: "Oranges & Browns", angle: 30, distRatio: 0.55, history: "Historical Origin: Intermediate spectral color (~590–625nm). Named after introduced citrus fruit." },
+            { name: "amber", hex: "#FFBF00", category: "Oranges & Browns", angle: 45, distRatio: 0.52, history: "Historical Origin: Fossilized tree resin prized for jewelry and talismans since antiquity." },
+            { name: "tiger", hex: "#FD6A02", category: "Oranges & Browns", angle: 25, distRatio: 0.60, history: "Historical Origin: Tawny orange inspired by natural tiger coat camouflage." },
+            { name: "brown", hex: "#8B4513", category: "Oranges & Browns", angle: 20, distRatio: 0.82, history: "Historical Origin: Composite dark shade of red/orange made with raw umber and sienna earth pigments." },
+            { name: "chocolate", hex: "#7B3F00", category: "Oranges & Browns", angle: 30, distRatio: 0.84, history: "Historical Origin: Deep rich brown named after roasted Mesoamerican cacao bean paste." },
+            { name: "raisin", hex: "#291D1D", category: "Oranges & Browns", angle: 15, distRatio: 0.91, history: "Historical Origin: Dark brownish-purple matching sun-dried ripe grapes." },
+            { name: "tan", hex: "#D2B48C", category: "Oranges & Browns", angle: 34, distRatio: 0.40, history: "Historical Origin: Derived from oak bark ('tannin') used in traditional leather tanning." },
+            { name: "beige", hex: "#F5F5DC", category: "Oranges & Browns", angle: 60, distRatio: 0.15, history: "Historical Origin: French term for natural unbleached wool; pale neutral tint near white center." },
+            { name: "cookie", hex: "#C7A317", category: "Oranges & Browns", angle: 45, distRatio: 0.58, history: "Historical Origin: Warm golden-baked pastry tone from Maillard caramelization." },
+            { name: "cantaloupe", hex: "#FDA875", category: "Oranges & Browns", angle: 22, distRatio: 0.35, history: "Historical Origin: Soft pastel melon orange named after ripe Cucumis melo flesh." },
+            { name: "Acorn", hex: "#7E5E38", category: "Oranges & Browns", angle: 32, distRatio: 0.72, history: "Historical Origin: Muted nut brown shade of oak tree seeds." },
+            { name: "sand", hex: "#C2B280", category: "Oranges & Browns", angle: 42, distRatio: 0.38, history: "Historical Origin: Earthy desaturated yellow-brown matching quartz beach sand." },
+            { name: "tangerine", hex: "#F28500", category: "Oranges & Browns", angle: 28, distRatio: 0.55, history: "Historical Origin: Vivid orange named after citrus exported through Tangier, Morocco." },
+            { name: "rust", hex: "#B7410E", category: "Oranges & Browns", angle: 18, distRatio: 0.72, history: "Historical Origin: Reddish-brown iron oxide formed by atmospheric corrosion." },
+            { name: "COFFEE!", hex: "#4B3621", category: "Oranges & Browns", angle: 26, distRatio: 0.88, history: "Historical Origin: The final legendary dark roasted Coffea bean hue! Enjoyed globally since 15th-century Sufi monasteries." },
+
+            // Yellows & Golds
+            { name: "yellow", hex: "#FFFF00", category: "Yellows & Golds", angle: 60, distRatio: 0.50, history: "Historical Origin: Peak visible luminance wavelength (~570–590nm). Goethe's symbol for pure light." },
+            { name: "gold", hex: "#FFD700", category: "Yellows & Golds", angle: 50, distRatio: 0.52, history: "Historical Origin: Precious metallic yellow associated with royal crowns and gilding." },
+            { name: "banana", hex: "#FFE135", category: "Yellows & Golds", angle: 53, distRatio: 0.42, history: "Historical Origin: Bright tropical fruit yellow in 20th-century dye charts." },
+            { name: "pineapple", hex: "#FFE338", category: "Yellows & Golds", angle: 55, distRatio: 0.45, history: "Historical Origin: Tropical yellow-gold inspired by ripe pineapple flesh." },
+            { name: "butter", hex: "#FFFD74", category: "Yellows & Golds", angle: 59, distRatio: 0.22, history: "Historical Origin: Soft pale yellow derived from churned high-fat dairy cream." },
+            { name: "Corn", hex: "#FBEC5D", category: "Yellows & Golds", angle: 54, distRatio: 0.38, history: "Historical Origin: Golden grain yellow inspired by ripe maize ears." },
+            { name: "wheat", hex: "#F5DEB3", category: "Yellows & Golds", angle: 48, distRatio: 0.25, history: "Historical Origin: Warm pale yellow hue matching dried agricultural cereal grains." },
+
+            // Greens & Olives
+            { name: "green", hex: "#008000", category: "Greens & Olives", angle: 120, distRatio: 0.55, history: "Historical Origin: Visible wavelength (~500–565nm). Primary additive RGB color of plant flora." },
+            { name: "emerald", hex: "#50C878", category: "Greens & Olives", angle: 140, distRatio: 0.52, history: "Historical Origin: Beryl gemstone green colored by chromium and vanadium." },
+            { name: "jade", hex: "#00A86B", category: "Greens & Olives", angle: 155, distRatio: 0.58, history: "Historical Origin: Ornamental mineral green prized in Chinese and Mesoamerican cultures." },
+            { name: "pine", hex: "#01796F", category: "Greens & Olives", angle: 172, distRatio: 0.64, history: "Historical Origin: Deep evergreen green inspired by conifer needles." },
+            { name: "pistachio", hex: "#93C572", category: "Greens & Olives", angle: 100, distRatio: 0.38, history: "Historical Origin: Soft culinary yellow-green matching roasted nut kernels." },
+            { name: "swamp", hex: "#4C5D2D", category: "Greens & Olives", angle: 85, distRatio: 0.76, history: "Historical Origin: Dark murky green reflecting algae-rich wetland mosses." },
+            { name: "lime", hex: "#00FF00", category: "Greens & Olives", angle: 120, distRatio: 0.50, history: "Historical Origin: High-saturation electric green matching citrus peel." },
+            { name: "sapGreen", hex: "#507D2A", category: "Greens & Olives", angle: 95, distRatio: 0.68, history: "Historical Origin: Historic buckthorn berry lake pigment used by Renaissance illustrators." },
+            { name: "olive", hex: "#808000", category: "Greens & Olives", angle: 60, distRatio: 0.75, history: "Historical Origin: Dark muted yellow-green extracted from olive fruit skins." },
+            { name: "grass", hex: "#7CFC00", category: "Greens & Olives", angle: 90, distRatio: 0.52, history: "Historical Origin: Chlorophyll-rich green matching spring lawn turf." },
+            { name: "leaf", hex: "#3B7A57", category: "Greens & Olives", angle: 145, distRatio: 0.66, history: "Historical Origin: Natural foliage green recording mature tree canopy hues." },
+            { name: "mint", hex: "#98FF98", category: "Greens & Olives", angle: 120, distRatio: 0.28, history: "Historical Origin: Pale desaturated green tint named after Mentha plant leaves." },
+            { name: "Amazon", hex: "#3B7A57", category: "Greens & Olives", angle: 150, distRatio: 0.64, history: "Historical Origin: Deep rainforest foliage green named after the South American Amazon basin." },
+            { name: "ForestGreen", hex: "#228B22", category: "Greens & Olives", angle: 120, distRatio: 0.65, history: "Historical Origin: Classic rich forest canopy green cataloged in 19th-century dye books." },
+            { name: "seaweed", hex: "#354A21", category: "Greens & Olives", angle: 90, distRatio: 0.82, history: "Historical Origin: Dark marine algae green from coastal marine flora." },
+
+            // Cyans & Teals
+            { name: "cyan", hex: "#00FFFF", category: "Cyans & Teals", angle: 180, distRatio: 0.50, history: "Historical Origin: Spectral wavelength (~490–520nm). Primary subtractive cyan in CMYK printing." },
+            { name: "cerulean", hex: "#007BA7", category: "Cyans & Teals", angle: 195, distRatio: 0.62, history: "Historical Origin: Latin 'caeruleum' (heavens); cobalt stannate blue synthesized in 1805." },
+            { name: "DarkTeal", hex: "#004D40", category: "Cyans & Teals", angle: 170, distRatio: 0.82, history: "Historical Origin: Deep ocean cyan-green combining teal with charcoal shading." },
+            { name: "sky-blue", hex: "#87CEEB", category: "Cyans & Teals", angle: 197, distRatio: 0.32, history: "Historical Origin: Rayleigh scattering blue of atmospheric daylight skies." },
+            { name: "teal", hex: "#008080", category: "Cyans & Teals", angle: 180, distRatio: 0.70, history: "Historical Origin: Dark cyan named after the duck eye stripe feather." },
+            { name: "turquoise", hex: "#40E0D0", category: "Cyans & Teals", angle: 174, distRatio: 0.45, history: "Historical Origin: Hydrated copper mineral gemstone traded through Turkey." },
+            { name: "smoke-blue", hex: "#7A8B99", category: "Cyans & Teals", angle: 205, distRatio: 0.45, history: "Historical Origin: Slate blue desaturated with ash gray in landscape art." },
+            { name: "LightBlue", hex: "#ADD8E6", category: "Cyans & Teals", angle: 195, distRatio: 0.25, history: "Historical Origin: Soft pale sky tint recorded in early color charts." },
+            { name: "Aqua/Aquamarine", hex: "#7FFFD4", category: "Cyans & Teals", angle: 160, distRatio: 0.35, history: "Historical Origin: Named for beryl gemstone sea-water clarity." },
+            { name: "ElectricAqua", hex: "#00FFEF", category: "Cyans & Teals", angle: 176, distRatio: 0.48, history: "Historical Origin: Saturated cyan popularized in digital RGB neon graphics." },
+            { name: "BabyCyan", hex: "#E0FFFF", category: "Cyans & Teals", angle: 180, distRatio: 0.12, history: "Historical Origin: Soft pastel cyan near central white light." },
+            { name: "LagoonMist", hex: "#84D3D5", category: "Cyans & Teals", angle: 182, distRatio: 0.36, history: "Historical Origin: Muted tropical lagoon spray water hue." },
+            { name: "MintishCyan", hex: "#A0FEF0", category: "Cyans & Teals", angle: 170, distRatio: 0.24, history: "Historical Origin: Refreshing pale mint-tinted cyan hue." },
+            { name: "Aqua-Blue", hex: "#02D8E9", category: "Cyans & Teals", angle: 185, distRatio: 0.50, history: "Historical Origin: Vibrant tropical ocean water blue tone." },
+            { name: "Fiji", hex: "#00A8B5", category: "Cyans & Teals", angle: 184, distRatio: 0.60, history: "Historical Origin: South Pacific island sea tone inspired by Fiji coral reefs." },
+
+            // Blues & Deep Blues
+            { name: "blue", hex: "#0000FF", category: "Blues & Deep Blues", angle: 240, distRatio: 0.55, history: "Historical Origin: Wavelength (~450–485nm). Newton's primary spectral blue benchmark." },
+            { name: "deepBlue", hex: "#00008B", category: "Blues & Deep Blues", angle: 240, distRatio: 0.82, history: "Historical Origin: Dark navy hue approaching outer black wheel shading." },
+            { name: "azure", hex: "#007FFF", category: "Blues & Deep Blues", angle: 210, distRatio: 0.52, history: "Historical Origin: Persian 'lazhward' (Lapis Lazuli gem); clear skylight hue." },
+            { name: "PrussianBlue", hex: "#003153", category: "Blues & Deep Blues", angle: 205, distRatio: 0.86, history: "Historical Origin: Synthetic pigment discovered by Diesbach in Berlin (1706)." },
+            { name: "cosmos", hex: "#111836", category: "Blues & Deep Blues", angle: 230, distRatio: 0.94, history: "Historical Origin: Dark night-sky indigo near the outer black rim." },
+            { name: "royal blue", hex: "#4169E1", category: "Blues & Deep Blues", angle: 225, distRatio: 0.56, history: "Historical Origin: Imperial blue created for Queen Charlotte of England." },
+            { name: "deep space", hex: "#070B19", category: "Blues & Deep Blues", angle: 235, distRatio: 0.97, history: "Historical Origin: Cosmic navy near total light absorption." },
+            { name: "RomanianBlue", hex: "#002B7F", category: "Blues & Deep Blues", angle: 220, distRatio: 0.82, history: "Historical Origin: Vibrant cobalt navy featured on the national tricolor of Romania." },
+            { name: "sapphire", hex: "#0F52BA", category: "Blues & Deep Blues", angle: 218, distRatio: 0.64, history: "Historical Origin: Precious corundum gemstone blue colored by iron and titanium." },
+            { name: "Midnight", hex: "#191970", category: "Blues & Deep Blues", angle: 240, distRatio: 0.90, history: "Historical Origin: Deepest night sky blue shade bordering black." },
+            { name: "MetroBlue", hex: "#005691", category: "Blues & Deep Blues", angle: 208, distRatio: 0.76, history: "Historical Origin: Urban transit authority sign blue from 20th-century design." },
+            { name: "Dusk", hex: "#4E5481", category: "Blues & Deep Blues", angle: 235, distRatio: 0.62, history: "Historical Origin: Twilight sky blue-gray tint at sunset transition." },
+            { name: "Dawn", hex: "#A3A8C7", category: "Blues & Deep Blues", angle: 232, distRatio: 0.32, history: "Historical Origin: Soft pale sky blue tint at morning twilight." },
+            { name: "peacock", hex: "#005F73", category: "Blues & Deep Blues", angle: 190, distRatio: 0.78, history: "Historical Origin: Iridescent blue-green from Indian peacock neck plumage." },
+            { name: "cobalt", hex: "#0047AB", category: "Blues & Deep Blues", angle: 215, distRatio: 0.70, history: "Historical Origin: Sintered cobalt aluminate pigment synthesized by Thénard in 1802." },
+            { name: "navy", hex: "#000080", category: "Blues & Deep Blues", angle: 240, distRatio: 0.85, history: "Historical Origin: Dark blue worn by British Royal Navy officers since 1748." },
+            { name: "Cornflower", hex: "#6495ED", category: "Blues & Deep Blues", angle: 218, distRatio: 0.42, history: "Historical Origin: Soft blue flower hue favored by painter Johannes Vermeer." },
+
+            // Purples & Violets
+            { name: "ChirpPurple", hex: "#A020F0", category: "Purples & Violets", angle: 285, distRatio: 0.52, history: "Historical Origin: Vibrant blend of electric magenta and royal purple." },
+            { name: "orchid", hex: "#DA70D6", category: "Purples & Violets", angle: 302, distRatio: 0.35, history: "Historical Origin: Pastel purple-pink named after tropical Orchidaceae petals." },
+            { name: "plum", hex: "#8E4585", category: "Purples & Violets", angle: 308, distRatio: 0.62, history: "Historical Origin: Reddish-purple matching ripe plum fruit skins." },
+            { name: "indigo", hex: "#4B0082", category: "Purples & Violets", angle: 265, distRatio: 0.75, history: "Historical Origin: Wavelength (~420–450nm). Newton's 7th spectral color from plant dyes." },
+            { name: "purple", hex: "#800080", category: "Purples & Violets", angle: 300, distRatio: 0.65, history: "Historical Origin: Imperial Tyrian purple from Mediterranean snail secretions." },
+            { name: "violet", hex: "#8A2BE2", category: "Purples & Violets", angle: 275, distRatio: 0.58, history: "Historical Origin: Shortest visible spectral wavelength (~380–450nm)." },
+            { name: "amethyst", hex: "#9966CC", category: "Purples & Violets", angle: 270, distRatio: 0.48, history: "Historical Origin: Purple quartz stone prized for clarity since ancient Greece." },
+            { name: "lavender", hex: "#E6E6FA", category: "Purples & Violets", angle: 240, distRatio: 0.15, history: "Historical Origin: Desaturated violet tint named after Lavandula flowers." },
+            { name: "grape", hex: "#6F2DA8", category: "Purples & Violets", angle: 272, distRatio: 0.68, history: "Historical Origin: Deep violet inspired by Vitis vinifera grape skins." },
+            { name: "royal amethyst", hex: "#5C246E", category: "Purples & Violets", angle: 288, distRatio: 0.78, history: "Historical Origin: Dark regal purple used in coronation robes." },
+            { name: "nebula", hex: "#4D3B82", category: "Purples & Violets", angle: 258, distRatio: 0.74, history: "Historical Origin: Deep cosmic purple inspired by interstellar gas clouds." },
+            { name: "periwinkle", hex: "#C5CBE9", category: "Purples & Violets", angle: 232, distRatio: 0.22, history: "Historical Origin: Pastel blue-violet flower hue cataloged in botany." },
+            { name: "Hyacinth", hex: "#9370DB", category: "Purples & Violets", angle: 260, distRatio: 0.48, history: "Historical Origin: Purple-blue floral tone named after mythological Hyacinthus." },
+            { name: "Lilac", hex: "#C8A2C8", category: "Purples & Violets", angle: 300, distRatio: 0.25, history: "Historical Origin: Pale violet floral tint from Syringa vulgaris shrubs." },
+            { name: "CityPurple", hex: "#6B2D5C", category: "Purples & Violets", angle: 315, distRatio: 0.72, history: "Historical Origin: Modern urban twilight purple shade." },
+            { name: "tropical", hex: "#9B51E0", category: "Purples & Violets", angle: 275, distRatio: 0.50, history: "Historical Origin: Bright vivid purple inspired by tropical rainforest orchids." }
+        ];
+
+        // Application State
+        let filteredColors = [...MASTER_COLORS];
+        let activeColor = MASTER_COLORS.find(c => c.name === "red");
+        let currentColor = { r: 255, g: 0, b: 0, hex: "#FF0000", h: 0, s: 100, l: 50 };
+        let activeCategory = "all";
+
+        // DOM Elements
+        const canvas = document.getElementById('colorWheel');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const monoCanvas = document.getElementById('monoCanvas');
+        const monoCtx = monoCanvas.getContext('2d', { willReadFrequently: true });
+        
+        const inspectorSwatch = document.getElementById('inspectorSwatch');
+        const inspectorName = document.getElementById('inspectorName');
+        const inspectorCategory = document.getElementById('inspectorCategory');
+        const hexVal = document.getElementById('hexVal');
+        const rgbVal = document.getElementById('rgbVal');
+        const hslVal = document.getElementById('hslVal');
+        const historyText = document.getElementById('historyText');
+        const paletteGrid = document.getElementById('paletteGrid');
+        const colorCount = document.getElementById('colorCount');
+        const colorSearch = document.getElementById('colorSearch');
+        const monoValueLabel = document.getElementById('monoValueLabel');
+
+        window.onload = function() {
+            renderColorWheel();
+            renderMonoCanvas();
+            renderPalette();
+            selectColorPreset(activeColor);
+            setupEvents();
+        };
+
+        // Render HSL Wheel & Permanent Markers for Chromatic + Mono Colors
+        function renderColorWheel() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = width / 2;
+
+            // 1. Render Base HSL Color Gradient (White Center -> Pure Hue -> Black Edge)
+            const imgData = ctx.createImageData(width, height);
+            const data = imgData.data;
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const dx = x - centerX;
+                    const dy = y - centerY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance <= radius) {
+                        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        if (angle < 0) angle += 360;
+
+                        const normDist = distance / radius;
+                        let r, g, b;
+
+                        if (normDist <= 0.5) {
+                            const t = normDist / 0.5;
+                            const hueRgb = hslToRgb(angle, 100, 50);
+                            r = Math.round(255 * (1 - t) + hueRgb.r * t);
+                            g = Math.round(255 * (1 - t) + hueRgb.g * t);
+                            b = Math.round(255 * (1 - t) + hueRgb.b * t);
+                        } else {
+                            const t = (normDist - 0.5) / 0.5;
+                            const hueRgb = hslToRgb(angle, 100, 50);
+                            r = Math.round(hueRgb.r * (1 - t));
+                            g = Math.round(hueRgb.g * (1 - t));
+                            b = Math.round(hueRgb.b * (1 - t));
+                        }
+
+                        const index = (y * width + x) * 4;
+                        data[index] = r;
+                        data[index + 1] = g;
+                        data[index + 2] = b;
+                        data[index + 3] = 255;
+                    }
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+
+            // 2. Draw Permanent Static Circle Markers for ALL Master Colors
+            MASTER_COLORS.forEach(col => {
+                let x, y;
+                if (col.name === "white") {
+                    x = centerX; y = centerY;
+                } else if (col.name === "black") {
+                    x = centerX + (radius - 12); y = centerY;
+                } else if (col.isMono) {
+                    x = centerX + (radius * (col.distRatio || 0.5)); y = centerY;
+                } else {
+                    const rad = (col.angle * Math.PI) / 180;
+                    const r = col.distRatio * radius;
+                    x = centerX + r * Math.cos(rad);
+                    y = centerY + r * Math.sin(rad);
+                }
+
+                col.canvasX = x;
+                col.canvasY = y;
+
+                // Render marker circle
+                ctx.beginPath();
+                ctx.arc(x, y, 5.5, 0, Math.PI * 2);
+                ctx.fillStyle = col.hex;
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = needsDarkText(col.hex) ? '#000000' : '#FFFFFF';
+                ctx.stroke();
+            });
+        }
+
+        // Render Monochrome Axis Canvas + Markers for Neutral Colors
+        function renderMonoCanvas() {
+            const w = monoCanvas.width = monoCanvas.clientWidth;
+            const h = monoCanvas.height = monoCanvas.clientHeight;
+            
+            // 1. Gradient background
+            const grad = monoCtx.createLinearGradient(0, 0, w, 0);
+            grad.addColorStop(0, '#000000');
+            grad.addColorStop(0.5, '#808080');
+            grad.addColorStop(1, '#FFFFFF');
+
+            monoCtx.fillStyle = grad;
+            monoCtx.fillRect(0, 0, w, h);
+
+            // 2. Static circle markers for neutral/monochrome colors
+            const monoColors = MASTER_COLORS.filter(c => c.isMono && c.monoPos !== undefined);
+            const padding = 14;
+            const usableWidth = w - padding * 2;
+
+            monoColors.forEach(col => {
+                const x = padding + col.monoPos * usableWidth;
+                const y = h / 2;
+
+                col.monoX = x;
+                col.monoY = y;
+
+                monoCtx.beginPath();
+                monoCtx.arc(x, y, 5, 0, Math.PI * 2);
+                monoCtx.fillStyle = col.hex;
+                monoCtx.fill();
+                monoCtx.lineWidth = 1.5;
+                monoCtx.strokeStyle = needsDarkText(col.hex) ? '#000000' : '#FFFFFF';
+                monoCtx.stroke();
+            });
+        }
+
+        // Render Master Palette Grid Cards
+        function renderPalette() {
+            paletteGrid.innerHTML = '';
+            
+            const query = colorSearch.value.toLowerCase().trim();
+            filteredColors = MASTER_COLORS.filter(col => {
+                const matchesCat = activeCategory === 'all' || col.category === activeCategory;
+                const matchesSearch = col.name.toLowerCase().includes(query) || col.hex.toLowerCase().includes(query);
+                return matchesCat && matchesSearch;
+            });
+
+            colorCount.innerText = filteredColors.length;
+
+            filteredColors.forEach(col => {
+                const btn = document.createElement('button');
+                btn.className = `palette-btn relative group h-9 rounded-lg border border-slate-700/80 p-0.5 transition-all duration-150 hover:scale-105 hover:z-10 focus:outline-none ${activeColor.name === col.name ? 'ring-2 ring-sky-400 scale-105' : ''}`;
+                btn.title = `${col.name} (${col.hex})`;
+                
+                const innerDiv = document.createElement('div');
+                innerDiv.className = `w-full h-full rounded-md flex items-center justify-center text-[9px] font-bold truncate px-1 shadow-inner ${needsDarkText(col.hex) ? 'text-slate-900' : 'text-white'}`;
+                innerDiv.style.backgroundColor = col.hex;
+                innerDiv.innerText = col.name;
+
+                btn.appendChild(innerDiv);
+                btn.onclick = () => selectColorPreset(col);
+                paletteGrid.appendChild(btn);
+            });
+        }
+
+        // Setup User Interactions
+        function setupEvents() {
+            // TAP mechanism on Color Wheel Canvas: Select closest marker circle
+            const handleWheelTap = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                const x = (clientX - rect.left) * scaleX;
+                const y = (clientY - rect.top) * scaleY;
+
+                let hitMarker = null;
+                let minDist = Infinity;
+
+                MASTER_COLORS.forEach(c => {
+                    const d = Math.sqrt((x - c.canvasX)**2 + (y - c.canvasY)**2);
+                    if (d < 20 && d < minDist) {
+                        minDist = d;
+                        hitMarker = c;
+                    }
+                });
+
+                if (hitMarker) {
+                    selectColorPreset(hitMarker);
+                }
+            };
+
+            canvas.addEventListener('click', handleWheelTap);
+            canvas.addEventListener('touchstart', handleWheelTap, { passive: true });
+
+            // TAP mechanism on Monochrome Slider Bar: Select closest neutral marker
+            const handleMonoTap = (e) => {
+                const rect = monoCanvas.getBoundingClientRect();
+                const scaleX = monoCanvas.width / rect.width;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const x = (clientX - rect.left) * scaleX;
+
+                const monoColors = MASTER_COLORS.filter(c => c.isMono && c.monoX !== undefined);
+                let hitMarker = null;
+                let minDist = Infinity;
+
+                monoColors.forEach(c => {
+                    const d = Math.abs(x - c.monoX);
+                    if (d < 20 && d < minDist) {
+                        minDist = d;
+                        hitMarker = c;
+                    }
+                });
+
+                if (hitMarker) {
+                    selectColorPreset(hitMarker);
+                }
+            };
+
+            const monoContainer = document.getElementById('monoContainer');
+            monoContainer.addEventListener('click', handleMonoTap);
+            monoContainer.addEventListener('touchstart', handleMonoTap, { passive: true });
+
+            // Search filter
+            colorSearch.addEventListener('input', () => renderPalette());
+
+            // Category tabs
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.cat-btn').forEach(b => {
+                        b.classList.remove('bg-indigo-600', 'text-white', 'active');
+                        b.classList.add('bg-slate-800', 'text-slate-400');
+                    });
+                    e.target.classList.remove('bg-slate-800', 'text-slate-400');
+                    e.target.classList.add('bg-indigo-600', 'text-white', 'active');
+                    activeCategory = e.target.getAttribute('data-cat');
+                    renderPalette();
+                });
+            });
+
+            // Copy button
+            document.getElementById('copyHexBtn').onclick = () => {
+                const tempInput = document.createElement('input');
+                tempInput.value = currentColor.hex;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+
+                showToast(`Copied ${currentColor.hex} to clipboard!`);
+            };
+
+            window.onresize = () => renderMonoCanvas();
+        }
+
+        // Select Preset Color
+        function selectColorPreset(preset) {
+            activeColor = preset;
+            const rgb = hexToRgb(preset.hex);
+            updateColorFromRGB(rgb.r, rgb.g, rgb.b, preset.name, preset.category);
+            
+            historyText.innerText = preset.history;
+            renderPalette();
+        }
+
+        // Update Color Inspector UI
+        function updateColorFromRGB(r, g, b, explicitName = null, explicitCategory = null) {
+            currentColor.r = r;
+            currentColor.g = g;
+            currentColor.b = b;
+            currentColor.hex = rgbToHex(r, g, b);
+
+            const hsl = rgbToHsl(r, g, b);
+            currentColor.h = hsl.h;
+            currentColor.s = hsl.s;
+            currentColor.l = hsl.l;
+
+            // UI updates
+            inspectorSwatch.style.backgroundColor = currentColor.hex;
+            hexVal.innerText = currentColor.hex;
+            rgbVal.innerText = `${r}, ${g}, ${b}`;
+            hslVal.innerText = `${hsl.h}°, ${hsl.s}%, ${hsl.l}%`;
+            monoValueLabel.innerText = `Lightness: ${hsl.l}%`;
+
+            inspectorName.innerText = explicitName || "Custom Color";
+            inspectorCategory.innerText = explicitCategory || "Chromatic Blend";
+        }
+
+        // Color Math Utilities
+        function hslToRgb(h, s, l) {
+            h /= 360; s /= 100; l /= 100;
+            let r, g, b;
+            if (s === 0) {
+                r = g = b = l;
+            } else {
+                const hue2rgb = (p, q, t) => {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1/6) return p + (q - p) * 6 * t;
+                    if (t < 1/2) return q;
+                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                    return p;
+                };
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
+            }
+            return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+        }
+
+        function rgbToHsl(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase();
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        function needsDarkText(hex) {
+            const rgb = hexToRgb(hex);
+            const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+            return brightness > 150;
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+    </script>
+</body>
+</html>
